@@ -1,27 +1,19 @@
-import os
-from dotenv import load_dotenv
+import re
 
-from pages.todo_page import TodoPage
-from playwright.sync_api import Page
-
-load_dotenv()
-
-URL = os.getenv("APP_URL")
-
-TASKS = ['to do 1','to do 2', 'to do 3']  
-
-# todo: need to migrate test data in seperate file
+from playwright.sync_api import expect
 
 
-def test_mark_completed(page: Page):
-    todo_page = TodoPage(page)
-    
-    todo_page.goto_app(URL)
-    todo_page.app_loaded()
-    
-    todo_page.add_todo_list(TASKS)
-    todo_page.get_todo_count()
-    todo_page.clear_completed()
-    todo_page.get_todo_count()
+def test_mark_completed(todo_page_with_tasks, tasks):
+    todo_page = todo_page_with_tasks
+    target, others = tasks[0], tasks[1:]
 
-    todo_page.mark_completed()
+    todo_page.complete(target)
+
+    expect(todo_page.item(target)).to_have_class(re.compile(r"\bcompleted\b"))
+
+    for task in others:
+        expect(todo_page.item(task)).not_to_have_class(re.compile(r"\bcompleted\b"))
+
+    expect(todo_page.todo_counter).to_have_text(
+        re.compile(rf"^{len(others)} items? left")
+    )

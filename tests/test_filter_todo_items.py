@@ -1,36 +1,20 @@
-import os
-from dotenv import load_dotenv
-
-from pages.todo_page import TodoPage
-from playwright.sync_api import Page,expect
-
-load_dotenv()
-
-URL = os.getenv("APP_URL")
-
-TASKS = ['to do 1','to do 2']
+from playwright.sync_api import expect
 
 
-def test_filter_items(page: Page):
-    todo_page = TodoPage(page)
-    todo_page.goto_app(URL)
-    todo_page.app_loaded()
+def test_filter_items(todo_page_with_tasks, tasks):
+    todo_page = todo_page_with_tasks
+    done, active = tasks[0], tasks[1:]
 
-    for task in TASKS:
-        todo_page.create_item(task)   
+    todo_page.complete(done)
+
     todo_page.switch_to_active()
-    expect(page.get_by_text(TASKS[1])).to_be_visible
-    items_count = todo_page.get_todo_count()
-    print(items_count)
-    assert items_count == len(TASKS), "active items count doesn't match"
+    expect(todo_page.todo_items).to_have_text(active)
+    expect(todo_page.item(done)).to_have_count(0)
 
-    todo_page.toggle_all_btn.click()
     todo_page.switch_to_completed()
+    expect(todo_page.todo_items).to_have_text([done])
+    for task in active:
+        expect(todo_page.item(task)).to_have_count(0)
 
-    for task in TASKS:
-        item_counts = todo_page.completed_list.get_by_text(task).count()
-    assert items_count == len(TASKS)
-    items_count = todo_page.get_todo_count()
-    assert items_count == 0, "failed to mark some list item as completed"
-
-
+    todo_page.switch_to_all()
+    expect(todo_page.todo_items).to_have_text(tasks)
